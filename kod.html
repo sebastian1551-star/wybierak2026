@@ -1,0 +1,1023 @@
+
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<title>KLASYFIKACJA ODPADÓW</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{font-family:Arial, Helvetica, sans-serif;margin:20px; display: block;}
+  input, button, select, textarea{font-size:14px;padding:8px;margin:6px 0}
+  .row{display:flex;gap:8px;align-items:center;max-width: 300px;}
+  #results{max-height:320px;overflow:auto;border:1px solid #ddd;padding:8px;border-radius:6px}
+  .item{padding:6px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center; max-width: 300px;}
+  .item:last-child{border-bottom:0}
+  .code{font-weight:700;margin-right:12px;white-space:nowrap}
+  .name{flex:1;padding-right:12px}
+  .selected{background:#eef9ff}
+  .controls{margin-top:8px}
+  small{color:#666}
+  .help{background:#f8f8f8;padding:10px;border-radius:6px;margin-top:10px}
+  .textarea {font-family: Verdana, Geneva, Tahoma, sans-serif; text-align: center; font-size: 11px;
+  }
+  .main-container {
+  width: 100%;
+    max-width: 600px; /* Twoja pożądana szerokość */
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* Delikatny cień */
+  font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+  text-align: center;
+  display: inline-block;
+}
+
+.wybrane{display: flex; font-family: Arial, Helvetica, sans-serif;}
+
+</style>
+</head>
+<body>
+<div class="main-container">
+<h2>KODY ODPADÓW 2020</h2>
+<div class="row">
+  <input id="search" placeholder="Wyszukaj kod lub nazwę..." style="flex:1"/>
+  <button id="clear">Wyczyść</button>
+</div>
+
+<div class="row">
+  <button id="copySelected">Kopiuj wybrane</button>
+</div>
+
+
+<h3>Filtr wyników</h3>
+<div id="results" aria-live="polite"></div>
+</div>
+<div class="wybrane">
+  <textarea cols="50"></textarea>
+</div>
+</div>
+<script>
+  
+/* Przykładowy zestaw — zastąp danymi z ustawy po imporcie */
+let items = [
+  {code: "01 01 01", name: "Odpady z wydobywania rud metali (np. magnetytu, hematytu, goethytu)"},
+    {code: "01 01 02", name: "Odpady z wydobywania surowców niemetalicznych (np. wapienia, gipsu, kamienia, żwiru)"},
+    {code: "01 03 04", name: "Kwasotwórcze odpady z przeróbki rud metali zawierające siarczki"},
+    {code: "01 03 05", name: "Inne odpady z przeróbki rud metali zawierające metale ciężkie (np. odpady z flotacji)"},
+    {code: "01 03 06", name: "Odpady z przeróbki rud żelaza inne niż wymienione w 01 03 04 i 01 03 05"},
+    {code: "01 03 07", name: "Inne odpady z fizycznej i chemicznej przeróbki rud metali inne niż wymienione w 01 03 04 do 01 03 06"},
+    {code: "01 03 08", name: "Odpady zapylające i pyliste inne niż wymienione w 01 03 04 do 01 03 07"},
+    {code: "01 03 09", name: "Szlamy czerwone (z produkcji tlenku glinu)"},
+    {code: "01 03 99", name: "Inne odpady niż wymienione w 01 03 04 do 01 03 09"},
+    {code: "01 04 07", name: "Odpady zawierające metale ciężkie z fizycznej i chemicznej przeróbki surowców niemetalicznych"},
+    {code: "01 04 08", name: "Odpady zapylające i pyliste inne niż wymienione w 01 04 07"},
+    {code: "01 04 09", name: "Odpady piaszczyste i gliniaste, inne niż wymienione w 01 04 07"},
+    {code: "01 04 10", name: "Skały płonne z fizycznej i chemicznej przeróbki surowców niemetalicznych"},
+    {code: "01 04 11", name: "Odpady z przeróbki potażu i soli kamiennej inne niż wymienione w 01 04 07"},
+    {code: "01 04 12", name: "Odpady z płukania i oczyszczania surowców mineralnych, inne niż wymienione w 01 04 07 i 01 04 11"},
+    {code: "01 04 13", name: "Odpady z cięcia i obróbki kamienia, inne niż wymienione w 01 04 07"},
+    {code: "01 04 99", name: "Inne odpady niż wymienione w 01 04 07 do 01 04 13"},
+    {code: "01 05 04", name: "Odpady z wód słodkich z wierceń, zawierające środki chemiczne inne niż wymienione w 01 05 05 i 01 05 06"},
+    {code: "01 05 05", name: "Osady wiertnicze i inne odpady z wierceń zawierające substancje ropopochodne"},
+    {code: "01 05 06", name: "Odpady z wód słodkich z wierceń zawierające niebezpieczne substancje"},
+    {code: "01 05 07", name: "Baryt zawierający niebezpieczne substancje, inne niż wymienione w 01 05 05 i 01 05 06"},
+    {code: "01 05 08", name: "Inne odpady niż wymienione w 01 05 04 do 01 05 07"},
+    {code: "02 01 01", name: "Osady z mycia i oczyszczania (np. z mycia upraw)"},
+    {code: "02 01 02", name: "Odpady tkanek zwierzęcych i roślinnych"},
+    {code: "02 01 03", name: "Odpady z przetwórstwa tkanek roślinnych (np. włókna roślinne, pył, odpady z torfu)"},
+    {code: "02 01 04", name: "Odpadowe tworzywa sztuczne (z wyjątkiem opakowań)"},
+    {code: "02 01 06", name: "Odpady zwierzęce inne niż wymienione w 02 01 02, 02 01 03 i 02 01 99"},
+    {code: "02 01 07", name: "Odpady z leśnictwa"},
+    {code: "02 01 08", name: "Odpady agrochemikaliów zawierające niebezpieczne substancje"},
+    {code: "02 01 09", name: "Odpady agrochemikaliów inne niż wymienione w 02 01 08"},
+    {code: "02 01 10", name: "Zużyty sprzęt zawierający niebezpieczne substancje"},
+    {code: "02 01 99", name: "Inne odpady niż wymienione w 02 01 01 do 02 01 10"},
+    {code: "02 02 01", name: "Osady z mycia, czyszczenia i mechanicznego oddzielania surowców"},
+    {code: "02 02 02", name: "Odpady zwierzęce z przygotowania i przetwórstwa mięsa (np. szlamy z uboju, odpadki, krew)"},
+    {code: "02 02 03", name: "Odpady materiałów, które nadają się do konsumpcji lub przetwórstwa (z wyjątkiem 02 02 04)"},
+    {code: "02 02 04", name: "Szlamy z zakładowych oczyszczalni ścieków"},
+    {code: "02 02 99", name: "Inne odpady niż wymienione w 02 02 01 do 02 02 04"},
+    {code: "02 03 01", name: "Osady z mycia, czyszczenia, obierania, wirowania i oddzielania surowców"},
+    {code: "02 03 02", name: "Odpady z dodatków (np. tłuszcz, skrobia, proteiny)"},
+    {code: "02 03 03", name: "Odpady z ekstrakcji rozpuszczalnikami"},
+    {code: "02 03 04", name: "Szlamy z fizycznej i chemicznej przeróbki surowców (z wyjątkiem 02 03 03)"},
+    {code: "02 03 05", name: "Szlamy z zakładowych oczyszczalni ścieków"},
+    {code: "02 03 99", name: "Inne odpady niż wymienione w 02 03 01 do 02 03 05"},
+    {code: "02 04 01", name: "Odpady z czyszczenia i mycia melasy"},
+    {code: "02 04 02", name: "Odpady z przeróbki cukru buraczanego i trzcinowego (np. szlamy z rafinacji)"},
+    {code: "02 04 03", name: "Szlamy z zakładowych oczyszczalni ścieków"},
+    {code: "02 04 99", name: "Inne odpady niż wymienione w 02 04 01 do 02 04 03"},
+    {code: "02 05 01", name: "Odpady stałe z przerobu produktów mleczarskich (np. skóry, tłuszcze, serwatka)"},
+    {code: "02 05 02", name: "Osady z zakładowych oczyszczalni ścieków"},
+    {code: "02 05 99", name: "Inne odpady niż wymienione w 02 05 01 i 02 05 02"},
+    {code: "02 06 01", name: "Odpady z przerobu produktów rybnych i owoców morza (np. skóry, łuski, kości)"},
+    {code: "02 06 02", name: "Osady z zakładowych oczyszczalni ścieków"},
+    {code: "02 06 99", name: "Inne odpady niż wymienione w 02 06 01 i 02 06 02"},
+    {code: "02 07 01", name: "Odpady z mycia, czyszczenia i mechanicznego oddzielania surowców"},
+    {code: "02 07 02", name: "Odpady z przerobu alkoholu, w tym osady z fermentacji"},
+    {code: "02 07 03", name: "Odpady z ekstrakcji rozpuszczalnikami"},
+    {code: "02 07 04", name: "Szlamy z fizycznej i chemicznej przeróbki surowców (z wyjątkiem 02 07 03)"},
+    {code: "02 07 05", name: "Szlamy z zakładowych oczyszczalni ścieków"},
+    {code: "02 07 99", name: "Inne odpady niż wymienione w 02 07 01 do 02 07 05"},
+    {code: "03 01 01", name: "Odpady kory i korka"},
+    {code: "03 01 04", name: "Odpady trocin, wiórów, ścinek, drewna, płyt wiórowych i forniru, zawierające substancje niebezpieczne"},
+    {code: "03 01 05", name: "Odpady trocin, wiórów, ścinek, drewna, płyt wiórowych i forniru, inne niż wymienione w 03 01 04"},
+    {code: "03 01 99", name: "Inne odpady niż wymienione w 03 01 01 do 03 01 05"},
+    {code: "03 02 01", name: "Nieorganiczne środki do konserwacji drewna zawierające metale ciężkie"},
+    {code: "03 02 02", name: "Organiczne środki do konserwacji drewna zawierające związki chlorowcoorganiczne"},
+    {code: "03 02 03", name: "Organiczne środki do konserwacji drewna niezawierające związków chlorowcoorganicznych i metali ciężkich"},
+    {code: "03 02 04", name: "Metaliczne środki do konserwacji drewna"},
+    {code: "03 02 05", name: "Inne środki do konserwacji drewna zawierające niebezpieczne substancje"},
+    {code: "03 02 99", name: "Inne środki do konserwacji drewna niż wymienione w 03 02 01 do 03 02 05"},
+    {code: "03 03 01", name: "Odpady kory i drewna"},
+    {code: "03 03 02", name: "Osady z przemywania makulatury (szlamy z makulatury)"},
+    {code: "03 03 05", name: "Szlamy z procesu odbarwiania makulatury"},
+    {code: "03 03 07", name: "Odpady z mechanicznej separacji odrzutów z produkcji masy celulozowej i papieru"},
+    {code: "03 03 08", name: "Odpady z sortowania papieru i tektury przeznaczone do recyklingu"},
+    {code: "03 03 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające niebezpieczne substancje"},
+    {code: "03 03 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 03 03 09"},
+    {code: "03 03 11", name: "Odpady z innych procesów przerobu masy celulozowej, papieru i tektury niż wymienione w 03 03 07 do 03 03 10"},
+    {code: "03 03 99", name: "Inne odpady niż wymienione w 03 03 01 do 03 03 11"},
+    {code: "04 01 01", name: "Farbki i środki do wykończania zawierające substancje niebezpieczne"},
+    {code: "04 01 02", name: "Odpady z procesu wapnienia zawierające chrom"},
+    {code: "04 01 03", name: "Odpady z procesu odtłuszczania zawierające rozpuszczalniki organiczne"},
+    {code: "04 01 04", name: "Szlamy z procesu garbowania zawierające chrom"},
+    {code: "04 01 05", name: "Szlamy z procesu garbowania inne niż wymienione w 04 01 04"},
+    {code: "04 01 06", name: "Szlamy, zwłaszcza z zakładowych oczyszczalni ścieków, zawierające chrom"},
+    {code: "04 01 07", name: "Szlamy, zwłaszcza z zakładowych oczyszczalni ścieków, inne niż wymienione w 04 01 06"},
+    {code: "04 01 08", name: "Odpady ze skóry (skrawki, dwoiny, ścinki, pyły szlifierskie) zawierające chrom"},
+    {code: "04 01 09", name: "Odpady z wykańczania i obróbki skór zawierające rozpuszczalniki organiczne bez chromu"},
+    {code: "04 01 99", name: "Inne odpady niż wymienione w 04 01 01 do 04 01 09"},
+    {code: "04 02 09", name: "Odpady materiałów kompozytowych (np. z tkanin impregnowanych)"},
+    {code: "04 02 10", name: "Odpady z włókien nieprzetworzonych"},
+    {code: "04 02 14", name: "Odpady z wykańczania zawierające substancje niebezpieczne"},
+    {code: "04 02 15", name: "Odpady z wykańczania inne niż wymienione w 04 02 14"},
+    {code: "04 02 16", name: "Barwniki i środki pomocnicze zawierające substancje niebezpieczne"},
+    {code: "04 02 17", name: "Barwniki i środki pomocnicze inne niż wymienione w 04 02 16"},
+    {code: "04 02 19", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające niebezpieczne substancje"},
+    {code: "04 02 20", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 04 02 19"},
+    {code: "04 02 21", name: "Odpady z włókien tekstylnych (np. szarpanka, przędza)"},
+    {code: "04 02 22", name: "Odpady ze skóry i futra z produkcji odzieży"},
+    {code: "04 02 99", name: "Inne odpady niż wymienione w 04 02 09 do 04 02 22"},
+    {code: "05 01 02", name: "Osady z procesu odsalania"},
+    {code: "05 01 03", name: "Osady z dna zbiorników zawierające węglowodory (z wyjątkiem 05 01 09 i 05 01 10)"},
+    {code: "05 01 04", name: "Kwasy potorfowe z przeróbki ropy naftowej"},
+    {code: "05 01 05", name: "Zasady potorfowe z przeróbki ropy naftowej"},
+    {code: "05 01 06", name: "Oleje zużyte zawierające substancje niebezpieczne"},
+    {code: "05 01 07", name: "Kwasy smołowe"},
+    {code: "05 01 08", name: "Inne oleje zużyte niż wymienione w 05 01 06 i 05 01 07"},
+    {code: "05 01 09", name: "Szlamy zawierające substancje niebezpieczne z zakładowych oczyszczalni ścieków"},
+    {code: "05 01 10", name: "Szlamy inne niż wymienione w 05 01 09"},
+    {code: "05 01 11", name: "Odpady z oczyszczania paliw płynnych zawierające substancje niebezpieczne"},
+    {code: "05 01 12", name: "Odpady z oczyszczania paliw płynnych inne niż wymienione w 05 01 11"},
+    {code: "05 01 13", name: "Odpady zawierające azbest z termoizolacji"},
+    {code: "05 01 14", name: "Odpady z kolumn chłodniczych zawierające substancje niebezpieczne"},
+    {code: "05 01 15", name: "Odpady z kolumn chłodniczych inne niż wymienione w 05 01 14"},
+    {code: "05 01 16", name: "Szlamy z usuwania zanieczyszczeń z rurociągów"},
+    {code: "05 01 17", name: "Asfalty"},
+    {code: "05 01 99", name: "Inne odpady niż wymienione w 05 01 02 do 05 01 17"},
+    {code: "05 06 01", name: "Kwasy potorfowe"},
+    {code: "05 06 03", name: "Inne odpady niż wymienione w 05 06 01"},
+    {code: "05 06 04", name: "Odpady ze spalonego wapnia (np. żużel, popioły z kotłów)"},
+    {code: "05 07 01", name: "Odpady zawierające siarczki z oczyszczania gazu"},
+    {code: "05 07 02", name: "Inne odpady niż wymienione w 05 07 01"},
+    {code: "06 01 01", name: "Kwas siarkowy i siarkawowy"},
+    {code: "06 01 02", name: "Kwas solny"},
+    {code: "06 01 03", name: "Kwas fluorowodorowy"},
+    {code: "06 01 04", name: "Kwas fosforowy i fosforawy"},
+    {code: "06 01 05", name: "Kwas azotowy i azotawy"},
+    {code: "06 01 06", name: "Inne kwasy niż wymienione w 06 01 01 do 06 01 05"},
+    {code: "06 02 01", name: "Wodorotlenek sodu i potasu"},
+    {code: "06 02 03", name: "Wodorotlenek amonu"},
+    {code: "06 02 04", name: "Inne zasady niż wymienione w 06 02 01 i 06 02 03"},
+    {code: "06 03 11", name: "Sole stałe i roztwory zawierające cyjanki"},
+    {code: "06 03 13", name: "Sole stałe i roztwory metali ciężkich, inne niż wymienione w 06 03 11"},
+    {code: "06 03 14", name: "Sole stałe i roztwory inne niż wymienione w 06 03 11 i 06 03 13"},
+    {code: "06 03 15", name: "Tlenki metali zawierające metale ciężkie"},
+    {code: "06 03 16", name: "Tlenki metali inne niż wymienione w 06 03 15"},
+    {code: "06 03 99", name: "Inne odpady niż wymienione w 06 03 11 do 06 03 16"},
+    {code: "06 04 03", name: "Odpady zawierające arsen, rtęć, tal, kadm, antymon i beryl"},
+    {code: "06 04 04", name: "Odpady zawierające metale ciężkie, inne niż wymienione w 06 04 03"},
+    {code: "06 04 05", name: "Inne odpady niż wymienione w 06 04 03 i 06 04 04"},
+    {code: "06 05 02", name: "Szlamy zawierające substancje niebezpieczne z zakładowych oczyszczalni ścieków"},
+    {code: "06 05 03", name: "Szlamy inne niż wymienione w 06 05 02"},
+    {code: "06 06 02", name: "Odpady zawierające siarczki z produkcji cyjanków"},
+    {code: "06 06 03", name: "Inne odpady niż wymienione w 06 06 02"},
+    {code: "06 07 01", name: "Odpady z elektrolizy zawierające azbest"},
+    {code: "06 07 02", name: "Węgiel aktywny z procesu produkcji chloru i chlorowodoru"},
+    {code: "06 07 03", name: "Szlamy z zakładowych oczyszczalni ścieków zawierające rtęć"},
+    {code: "06 07 04", name: "Inne odpady zawierające rtęć z elektrolizy"},
+    {code: "06 07 99", name: "Inne odpady niż wymienione w 06 07 01 do 06 07 04"},
+    {code: "06 08 02", name: "Odpady zawierające związki chlorowcoorganiczne"},
+    {code: "06 08 99", name: "Inne odpady niż wymienione w 06 08 02"},
+    {code: "06 09 02", name: "Popioły fosforynowe i fosforanowe"},
+    {code: "06 09 03", name: "Szlamy zawierające metale ciężkie z zakładowych oczyszczalni ścieków"},
+    {code: "06 09 04", name: "Szlamy inne niż wymienione w 06 09 03"},
+    {code: "06 09 99", name: "Inne odpady niż wymienione w 06 09 02 do 06 09 04"},
+    {code: "06 10 02", name: "Odpady zawierające substancje niebezpieczne"},
+    {code: "06 10 99", name: "Inne odpady niż wymienione w 06 10 02"},
+    {code: "06 11 01", name: "Odpady z produkcji węglanu wapnia (gips z filtracji)"},
+    {code: "06 13 01", name: "Nieorganiczne środki ochrony roślin (pestycydy, biocydy, fungicydy, itp.)"},
+    {code: "06 13 02", name: "Węgiel aktywny, zużyty (z wyjątkiem 06 07 02)"},
+    {code: "06 13 03", name: "Sadza techniczna"},
+    {code: "06 13 04", name: "Odpady z azbestu (związane)"},
+    {code: "06 13 05", name: "Popioły lotne i pyły z instalacji odsiarczania spalin"},
+    {code: "06 13 99", name: "Inne odpady niż wymienione w 06 13 01 do 06 13 05"},
+    {code: "07 01 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 01 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 01 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 01 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 01 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 01 07"},
+    {code: "07 01 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 01 10", name: "Osady z elektrolizy, inne niż wymienione w 07 01 09"},
+    {code: "07 01 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 01 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 01 11"},
+    {code: "07 01 99", name: "Inne odpady niż wymienione w 07 01 01 do 07 01 12"},
+    {code: "07 02 01", name: "Wodne roztwory myjące i ługi macierzyste"},
+    {code: "07 02 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 02 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 02 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 02 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 02 07"},
+    {code: "07 02 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 02 10", name: "Osady z elektrolizy, inne niż wymienione w 07 02 09"},
+    {code: "07 02 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 02 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 02 11"},
+    {code: "07 02 13", name: "Odpady z tworzyw sztucznych"},
+    {code: "07 02 14", name: "Odpady z włókien syntetycznych"},
+    {code: "07 02 15", name: "Inne odpady niż wymienione w 07 02 01 do 07 02 14"},
+    {code: "07 03 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 03 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 03 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 03 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 03 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 03 07"},
+    {code: "07 03 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 03 10", name: "Osady z elektrolizy, inne niż wymienione w 07 03 09"},
+    {code: "07 03 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 03 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 03 11"},
+    {code: "07 03 99", name: "Inne odpady niż wymienione w 07 03 01 do 07 03 12"},
+    {code: "07 04 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 04 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 04 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 04 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 04 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 04 07"},
+    {code: "07 04 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 04 10", name: "Osady z elektrolizy, inne niż wymienione w 07 04 09"},
+    {code: "07 04 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 04 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 04 11"},
+    {code: "07 04 13", name: "Odpady stałe zawierające substancje niebezpieczne"},
+    {code: "07 04 99", name: "Inne odpady niż wymienione w 07 04 01 do 07 04 13"},
+    {code: "07 05 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 05 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 05 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 05 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 05 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 05 07"},
+    {code: "07 05 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 05 10", name: "Osady z elektrolizy, inne niż wymienione w 07 05 09"},
+    {code: "07 05 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 05 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 05 11"},
+    {code: "07 05 13", name: "Odpady stałe zawierające substancje niebezpieczne"},
+    {code: "07 05 99", name: "Inne odpady niż wymienione w 07 05 01 do 07 05 13"},
+    {code: "07 06 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 06 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 06 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 06 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 06 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 06 07"},
+    {code: "07 06 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 06 10", name: "Osady z elektrolizy, inne niż wymienione w 07 06 09"},
+    {code: "07 06 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 06 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 06 11"},
+    {code: "07 06 99", name: "Inne odpady niż wymienione w 07 06 01 do 07 06 12"},
+    {code: "07 07 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "07 07 03", name: "Rozpuszczalniki organiczne, związki chlorowcoorganiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 07 04", name: "Inne rozpuszczalniki organiczne, ługi macierzyste i szlamy z oczyszczania ścieków"},
+    {code: "07 07 07", name: "Odpady z oczyszczania gazów, zawierające substancje niebezpieczne"},
+    {code: "07 07 08", name: "Odpady z oczyszczania gazów, inne niż wymienione w 07 07 07"},
+    {code: "07 07 09", name: "Osady z elektrolizy, zawierające substancje niebezpieczne"},
+    {code: "07 07 10", name: "Osady z elektrolizy, inne niż wymienione w 07 07 09"},
+    {code: "07 07 11", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "07 07 12", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 07 07 11"},
+    {code: "07 07 99", name: "Inne odpady niż wymienione w 07 07 01 do 07 07 12"},
+    {code: "08 01 11", name: "Odpady farb i lakierów zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 01 12", name: "Odpady farb i lakierów inne niż wymienione w 08 01 11"},
+    {code: "08 01 13", name: "Szlamy z usuwania farb i lakierów zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 01 14", name: "Szlamy z usuwania farb i lakierów inne niż wymienione w 08 01 13"},
+    {code: "08 01 15", name: "Szlamy wodne zawierające farby lub lakiery, zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 01 16", name: "Szlamy wodne zawierające farby lub lakiery, inne niż wymienione w 08 01 15"},
+    {code: "08 01 17", name: "Odpady z usuwania farb i lakierów zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 01 18", name: "Odpady z usuwania farb i lakierów inne niż wymienione w 08 01 17"},
+    {code: "08 01 19", name: "Zawiesiny wodne zawierające farby lub lakiery, zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 01 20", name: "Zawiesiny wodne zawierające farby lub lakiery, inne niż wymienione w 08 01 19"},
+    {code: "08 01 21", name: "Odpady z farb i lakierów, usuwane z opakowań (z wyłączeniem 08 01 17 i 08 01 18)"},
+    {code: "08 01 99", name: "Inne odpady niż wymienione w 08 01 11 do 08 01 21"},
+    {code: "08 03 12", name: "Zużyte farby drukarskie zawierające substancje niebezpieczne"},
+    {code: "08 03 13", name: "Szlamy farbiarskie zawierające substancje niebezpieczne"},
+    {code: "08 03 14", name: "Szlamy farbiarskie inne niż wymienione w 08 03 13"},
+    {code: "08 03 15", name: "Zużyte roztwory trawiące"},
+    {code: "08 03 16", name: "Zużyte tonery drukarskie (zawierające substancje niebezpieczne)"},
+    {code: "08 03 17", name: "Zużyte tonery drukarskie (inne niż wymienione w 08 03 16)"},
+    {code: "08 03 18", name: "Odpady stałe z farb drukarskich zawierające substancje niebezpieczne"},
+    {code: "08 03 19", name: "Odpady stałe z farb drukarskich inne niż wymienione w 08 03 18"},
+    {code: "08 03 99", name: "Inne odpady niż wymienione w 08 03 12 do 08 03 19"},
+    {code: "08 04 09", name: "Odpady klejów i szczeliw zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 04 10", name: "Odpady klejów i szczeliw inne niż wymienione w 08 04 09"},
+    {code: "08 04 11", name: "Szlamy klejów i szczeliw zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 04 12", name: "Szlamy klejów i szczeliw inne niż wymienione w 08 04 11"},
+    {code: "08 04 13", name: "Wodne szlamy klejów i szczeliw zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 04 14", name: "Wodne szlamy klejów i szczeliw inne niż wymienione w 08 04 13"},
+    {code: "08 04 15", name: "Odpady płynne klejów i szczeliw zawierające rozpuszczalniki organiczne lub inne substancje niebezpieczne"},
+    {code: "08 04 16", name: "Odpady płynne klejów i szczeliw inne niż wymienione w 08 04 15"},
+    {code: "08 04 17", name: "Odpady z kalafonii"},
+    {code: "08 04 99", name: "Inne odpady niż wymienione w 08 04 09 do 08 04 17"},
+    {code: "09 01 01", name: "Wodne roztwory wywoływaczy i aktywatorów"},
+    {code: "09 01 02", name: "Wodne roztwory utrwalaczy"},
+    {code: "09 01 03", name: "Roztwory wywoływaczy i aktywatorów na bazie rozpuszczalników"},
+    {code: "09 01 04", name: "Roztwory utrwalaczy na bazie rozpuszczalników"},
+    {code: "09 01 05", name: "Wywoływacze wybielające i roztwory wybielające"},
+    {code: "09 01 06", name: "Odpady zawierające srebro z obróbki naświetlonych materiałów fotograficznych"},
+    {code: "09 01 07", name: "Błony i papier fotograficzny, zawierające substancje niebezpieczne"},
+    {code: "09 01 08", name: "Błony i papier fotograficzny, inne niż wymienione w 09 01 07"},
+    {code: "09 01 10", name: "Jednorazowe aparaty fotograficzne bez baterii"},
+    {code: "09 01 11", name: "Jednorazowe aparaty fotograficzne zawierające baterie (z wyjątkiem 09 01 13)"},
+    {code: "09 01 12", name: "Jednorazowe aparaty fotograficzne zawierające niebezpieczne substancje (np. rtęć, kadm, ołów)"},
+    {code: "09 01 13", name: "Wodne odpady z oczyszczania ścieków na miejscu, zawierające srebro i inne metale ciężkie"},
+    {code: "09 01 99", name: "Inne odpady niż wymienione w 09 01 01 do 09 01 13"},
+    {code: "10 01 01", name: "Żużle, popioły i pyły z kotłów (z wyjątkiem 10 01 04)"},
+    {code: "10 01 02", name: "Popioły lotne ze spalania węgla"},
+    {code: "10 01 03", name: "Popioły lotne ze spalania torfu i drewna, inne niż wymienione w 10 01 04"},
+    {code: "10 01 04", name: "Popioły lotne zawierające substancje niebezpieczne, np. z biomasy"},
+    {code: "10 01 05", name: "Odpady stałe z wapniowych metod odsiarczania spalin"},
+    {code: "10 01 07", name: "Odpady z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 01 08", name: "Odpady z oczyszczania gazów odlotowych, inne niż wymienione w 10 01 07"},
+    {code: "10 01 09", name: "Kwas siarkowy"},
+    {code: "10 01 12", name: "Żużle i popioły z kotłów zawierające substancje niebezpieczne"},
+    {code: "10 01 13", name: "Żużle i popioły z kotłów inne niż wymienione w 10 01 01, 10 01 04, 10 01 12"},
+    {code: "10 01 14", name: "Żużle paleniskowe i popioły lotne z termicznego przekształcania odpadów, zawierające substancje niebezpieczne"},
+    {code: "10 01 15", name: "Żużle paleniskowe i popioły lotne z termicznego przekształcania odpadów, inne niż wymienione w 10 01 14"},
+    {code: "10 01 16", name: "Szlamy zawierające substancje niebezpieczne z zakładowych oczyszczalni ścieków"},
+    {code: "10 01 17", name: "Szlamy inne niż wymienione w 10 01 16"},
+    {code: "10 01 18", name: "Odpady z wapniowych metod odsiarczania spalin, zawierające substancje niebezpieczne"},
+    {code: "10 01 19", name: "Odpady z wapniowych metod odsiarczania spalin, inne niż wymienione w 10 01 18"},
+    {code: "10 01 20", name: "Szlamy z usuwania zanieczyszczeń z rurociągów"},
+    {code: "10 01 21", name: "Odpady paleniskowe i popioły lotne z termicznego przekształcania odpadów niebezpiecznych"},
+    {code: "10 01 22", name: "Odpady paleniskowe i popioły lotne z termicznego przekształcania odpadów innych niż niebezpieczne"},
+    {code: "10 01 23", name: "Odpady z oczyszczania gazów odlotowych z termicznego przekształcania odpadów niebezpiecznych"},
+    {code: "10 01 24", name: "Odpady z oczyszczania gazów odlotowych z termicznego przekształcania odpadów innych niż niebezpieczne"},
+    {code: "10 01 25", name: "Piaski ze złoża fluidalnego (z wyjątkiem 10 01 26)"},
+    {code: "10 01 26", name: "Piaski ze złoża fluidalnego zawierające substancje niebezpieczne"},
+    {code: "10 01 99", name: "Inne odpady niż wymienione w 10 01 01 do 10 01 26"},
+    {code: "10 02 07", name: "Odpady stałe z oczyszczania gazów odlotowych zawierające substancje niebezpieczne"},
+    {code: "10 02 08", name: "Odpady stałe z oczyszczania gazów odlotowych inne niż wymienione w 10 02 07"},
+    {code: "10 02 10", name: "Żużel, szlaka i inne odpady z hutnictwa metali zawierające metale ciężkie"},
+    {code: "10 02 11", name: "Inne żużle, szlaki i odpady z hutnictwa metali niż wymienione w 10 02 10"},
+    {code: "10 02 12", name: "Szlamy i osady z oczyszczania gazów odlotowych zawierające substancje niebezpieczne"},
+    {code: "10 02 13", name: "Szlamy i osady z oczyszczania gazów odlotowych inne niż wymienione w 10 02 12"},
+    {code: "10 02 14", name: "Inne odpady stałe niż wymienione w 10 02 07 do 10 02 13"},
+    {code: "10 02 15", name: "Inne odpady niż wymienione w 10 02 07 do 10 02 14"},
+    {code: "10 03 04", name: "Tlenek glinu z pierwszej rafinacji"},
+    {code: "10 03 05", name: "Odpady z oczyszczania gazów odlotowych zawierające substancje niebezpieczne"},
+    {code: "10 03 06", name: "Odpady z oczyszczania gazów odlotowych inne niż wymienione w 10 03 05"},
+    {code: "10 03 07", name: "Odpady z odlewania i przetopu zawierające substancje niebezpieczne"},
+    {code: "10 03 08", name: "Odpady z odlewania i przetopu inne niż wymienione w 10 03 07"},
+    {code: "10 03 09", name: "Żużle czarne z rafinacji zawierające substancje niebezpieczne"},
+    {code: "10 03 10", name: "Żużle czarne z rafinacji inne niż wymienione w 10 03 09"},
+    {code: "10 03 11", name: "Odpady anodowe z produkcji aluminium"},
+    {code: "10 03 12", name: "Odpady z obróbki żużli czarnych zawierające substancje niebezpieczne"},
+    {code: "10 03 13", name: "Odpady z obróbki żużli czarnych inne niż wymienione w 10 03 12"},
+    {code: "10 03 15", name: "Odpady elektrolitów z produkcji aluminium zawierające substancje niebezpieczne"},
+    {code: "10 03 16", name: "Odpady elektrolitów z produkcji aluminium inne niż wymienione w 10 03 15"},
+    {code: "10 03 17", name: "Żużel biały z rafinacji (aluminium pierwotne)"},
+    {code: "10 03 18", name: "Szlamy z oczyszczania ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 03 19", name: "Szlamy z oczyszczania ścieków, inne niż wymienione w 10 03 18"},
+    {code: "10 03 20", name: "Szlamy i placki filtracyjne z gazów odlotowych zawierające substancje niebezpieczne"},
+    {code: "10 03 21", name: "Szlamy i placki filtracyjne z gazów odlotowych inne niż wymienione w 10 03 20"},
+    {code: "10 03 22", name: "Inne pyły i proszki (w tym z kulowania młynów) zawierające substancje niebezpieczne"},
+    {code: "10 03 23", name: "Inne pyły i proszki (w tym z kulowania młynów) inne niż wymienione w 10 03 22"},
+    {code: "10 03 24", name: "Piaski z pieca (z wyjątkiem 10 03 25)"},
+    {code: "10 03 25", name: "Piaski z pieca zawierające substancje niebezpieczne"},
+    {code: "10 03 26", name: "Odpady z produkcji żużli odlewniczych i szlamów"},
+    {code: "10 03 27", name: "Odpady z obróbki żużli odlewniczych zawierające substancje niebezpieczne"},
+    {code: "10 03 28", name: "Odpady z obróbki żużli odlewniczych inne niż wymienione w 10 03 27"},
+    {code: "10 03 99", name: "Inne odpady niż wymienione w 10 03 04 do 10 03 28"},
+    {code: "10 04 01", name: "Żużle, szlaka i odpady z odlewania, zawierające substancje niebezpieczne"},
+    {code: "10 04 02", name: "Żużle, szlaka i odpady z odlewania, inne niż wymienione w 10 04 01"},
+    {code: "10 04 03", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 04 04", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 04 03"},
+    {code: "10 04 05", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 04 06", name: "Pyły i proszki, inne niż wymienione w 10 04 05"},
+    {code: "10 04 07", name: "Inne odpady stałe, zawierające substancje niebezpieczne"},
+    {code: "10 04 08", name: "Inne odpady stałe, inne niż wymienione w 10 04 07"},
+    {code: "10 04 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 04 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 04 09"},
+    {code: "10 04 99", name: "Inne odpady niż wymienione w 10 04 01 do 10 04 10"},
+    {code: "10 05 01", name: "Żużle, szlaka i odpady z odlewania, zawierające substancje niebezpieczne"},
+    {code: "10 05 02", name: "Żużle, szlaka i odpady z odlewania, inne niż wymienione w 10 05 01"},
+    {code: "10 05 03", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 05 04", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 05 03"},
+    {code: "10 05 05", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 05 06", name: "Pyły i proszki, inne niż wymienione w 10 05 05"},
+    {code: "10 05 07", name: "Inne odpady stałe, zawierające substancje niebezpieczne"},
+    {code: "10 05 08", name: "Inne odpady stałe, inne niż wymienione w 10 05 07"},
+    {code: "10 05 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 05 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 05 09"},
+    {code: "10 05 99", name: "Inne odpady niż wymienione w 10 05 01 do 10 05 10"},
+    {code: "10 06 01", name: "Żużle, szlaka i odpady z odlewania, zawierające substancje niebezpieczne"},
+    {code: "10 06 02", name: "Żużle, szlaka i odpady z odlewania, inne niż wymienione w 10 06 01"},
+    {code: "10 06 03", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 06 04", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 06 03"},
+    {code: "10 06 06", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 06 07", name: "Pyły i proszki, inne niż wymienione w 10 06 06"},
+    {code: "10 06 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 06 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 06 09"},
+    {code: "10 06 99", name: "Inne odpady niż wymienione w 10 06 01 do 10 06 10"},
+    {code: "10 07 01", name: "Żużle, szlaka i odpady z odlewania, zawierające substancje niebezpieczne"},
+    {code: "10 07 02", name: "Żużle, szlaka i odpady z odlewania, inne niż wymienione w 10 07 01"},
+    {code: "10 07 03", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 07 04", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 07 03"},
+    {code: "10 07 05", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 07 06", name: "Pyły i proszki, inne niż wymienione w 10 07 05"},
+    {code: "10 07 07", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 07 08", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 07 07"},
+    {code: "10 07 99", name: "Inne odpady niż wymienione w 10 07 01 do 10 07 08"},
+    {code: "10 08 08", name: "Sól żużlowa z odlewania, zawierająca substancje niebezpieczne"},
+    {code: "10 08 09", name: "Sól żużlowa z odlewania, inna niż wymieniona w 10 08 08"},
+    {code: "10 08 10", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 08 11", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 08 10"},
+    {code: "10 08 12", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 08 13", name: "Pyły i proszki, inne niż wymienione w 10 08 12"},
+    {code: "10 08 14", name: "Inne odpady stałe, zawierające substancje niebezpieczne"},
+    {code: "10 08 15", name: "Inne odpady stałe, inne niż wymienione w 10 08 14"},
+    {code: "10 08 16", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 08 17", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 08 16"},
+    {code: "10 08 18", name: "Odpady anodowe z produkcji metali nieżelaznych (cynk, ołów, kadm, itp.)"},
+    {code: "10 08 19", name: "Odpady z filtracji zawierające metale ciężkie"},
+    {code: "10 08 20", name: "Szlamy i placki filtracyjne z oczyszczania ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 08 21", name: "Szlamy i placki filtracyjne z oczyszczania ścieków, inne niż wymienione w 10 08 20"},
+    {code: "10 08 99", name: "Inne odpady niż wymienione w 10 08 08 do 10 08 21"},
+    {code: "10 09 03", name: "Żużle odlewnicze, zawierające substancje niebezpieczne"},
+    {code: "10 09 04", name: "Żużle odlewnicze, inne niż wymienione w 10 09 03"},
+    {code: "10 09 05", name: "Piaski formierskie i rdzeniowe zużyte, zawierające substancje niebezpieczne"},
+    {code: "10 09 06", name: "Piaski formierskie i rdzeniowe zużyte, inne niż wymienione w 10 09 05"},
+    {code: "10 09 07", name: "Pyły z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 09 08", name: "Pyły z oczyszczania gazów odlotowych, inne niż wymienione w 10 09 07"},
+    {code: "10 09 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 09 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 09 09"},
+    {code: "10 09 11", name: "Inne odpady zawierające substancje niebezpieczne"},
+    {code: "10 09 12", name: "Inne odpady niż wymienione w 10 09 11"},
+    {code: "10 09 99", name: "Inne odpady niż wymienione w 10 09 03 do 10 09 12"},
+    {code: "10 10 03", name: "Żużle odlewnicze, zawierające substancje niebezpieczne"},
+    {code: "10 10 04", name: "Żużle odlewnicze, inne niż wymienione w 10 10 03"},
+    {code: "10 10 05", name: "Piaski formierskie i rdzeniowe zużyte, zawierające substancje niebezpieczne"},
+    {code: "10 10 06", name: "Piaski formierskie i rdzeniowe zużyte, inne niż wymienione w 10 10 05"},
+    {code: "10 10 07", name: "Pyły z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 10 08", name: "Pyły z oczyszczania gazów odlotowych, inne niż wymienione w 10 10 07"},
+    {code: "10 10 09", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 10 10", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 10 09"},
+    {code: "10 10 11", name: "Inne odpady zawierające substancje niebezpieczne"},
+    {code: "10 10 12", name: "Inne odpady niż wymienione w 10 10 11"},
+    {code: "10 10 99", name: "Inne odpady niż wymienione w 10 10 03 do 10 10 12"},
+    {code: "10 11 03", name: "Odpady z włókien na bazie szkła zawierające substancje niebezpieczne"},
+    {code: "10 11 04", name: "Odpady z włókien na bazie szkła inne niż wymienione w 10 11 03"},
+    {code: "10 11 05", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 11 06", name: "Pyły i proszki, inne niż wymienione w 10 11 05"},
+    {code: "10 11 08", name: "Odpady ze szkła, zawierające metale ciężkie (np. z lamp elektronowych)"},
+    {code: "10 11 09", name: "Odpady ze szkła, inne niż wymienione w 10 11 08"},
+    {code: "10 11 10", name: "Odpady z materiałów kompozytowych na bazie szkła, zawierające substancje niebezpieczne"},
+    {code: "10 11 11", name: "Odpady z materiałów kompozytowych na bazie szkła, inne niż wymienione w 10 11 10"},
+    {code: "10 11 12", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 11 13", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 11 12"},
+    {code: "10 11 14", name: "Odpady stałe z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 11 15", name: "Odpady stałe z oczyszczania gazów odlotowych, inne niż wymienione w 10 11 14"},
+    {code: "10 11 16", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 11 17", name: "Szlamy i placki filtracyjne z oczyszczania gazów odlotowych, inne niż wymienione w 10 11 16"},
+    {code: "10 11 18", name: "Odpady szkła z produkcji szkła wodnego"},
+    {code: "10 11 19", name: "Odpady szkła z produkcji szkła (z wyjątkiem 10 11 18)"},
+    {code: "10 11 20", name: "Odpady ceramiczne (np. cegły, płytki)"},
+    {code: "10 11 99", name: "Inne odpady niż wymienione w 10 11 03 do 10 11 20"},
+    {code: "10 12 01", name: "Odpady z przygotowania surowców przed procesami termicznymi"},
+    {code: "10 12 03", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 12 04", name: "Pyły i proszki, inne niż wymienione w 10 12 03"},
+    {code: "10 12 05", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 12 06", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 12 05"},
+    {code: "10 12 08", name: "Odpady ceramiczne (np. cegły, płytki)"},
+    {code: "10 12 09", name: "Odpady z wypalania i wypieku (w tym z cegielni)"},
+    {code: "10 12 10", name: "Odpady z usuwania zanieczyszczeń z rurociągów"},
+    {code: "10 12 99", name: "Inne odpady niż wymienione w 10 12 01 do 10 12 10"},
+    {code: "10 13 01", name: "Odpady z wypalania i wypieku wapna i gipsu"},
+    {code: "10 13 03", name: "Pyły i proszki, zawierające substancje niebezpieczne"},
+    {code: "10 13 04", name: "Pyły i proszki, inne niż wymienione w 10 13 03"},
+    {code: "10 13 05", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "10 13 06", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 10 13 05"},
+    {code: "10 13 07", name: "Odpady z produkcji cementu azbestowego"},
+    {code: "10 13 08", name: "Odpady z cementu azbestowego (z wyjątkiem 10 13 07)"},
+    {code: "10 13 09", name: "Odpady z materiałów kompozytowych na bazie cementu"},
+    {code: "10 13 10", name: "Odpady z produkcji cementu"},
+    {code: "10 13 11", name: "Odpady z produkcji betonów i zapraw"},
+    {code: "10 13 12", name: "Odpady z produkcji materiałów budowlanych na bazie gipsu (np. płyty gipsowe)"},
+    {code: "10 13 13", name: "Odpady z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "10 13 14", name: "Odpady z oczyszczania gazów odlotowych, inne niż wymienione w 10 13 13"},
+    {code: "10 13 99", name: "Inne odpady niż wymienione w 10 13 01 do 10 13 14"},
+    {code: "11 01 05", name: "Kwasy trawiące zawierające substancje niebezpieczne"},
+    {code: "11 01 06", name: "Kwasy trawiące inne niż wymienione w 11 01 05"},
+    {code: "11 01 07", name: "Ługi trawiące zawierające substancje niebezpieczne"},
+    {code: "11 01 08", name: "Ługi trawiące inne niż wymienione w 11 01 07"},
+    {code: "11 01 09", name: "Szlamy i placki filtracyjne zawierające substancje niebezpieczne (z wyjątkiem 11 01 11)"},
+    {code: "11 01 10", name: "Szlamy i placki filtracyjne inne niż wymienione w 11 01 09"},
+    {code: "11 01 11", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "11 01 12", name: "Wodne roztwory myjące i ługi macierzyste inne niż wymienione w 11 01 11"},
+    {code: "11 01 13", name: "Odpady z odtłuszczania zawierające substancje niebezpieczne"},
+    {code: "11 01 14", name: "Odpady z odtłuszczania inne niż wymienione w 11 01 13"},
+    {code: "11 01 15", name: "Osady z elektrolizy"},
+    {code: "11 01 16", name: "Szlamy z zakładowych oczyszczalni ścieków zawierające substancje niebezpieczne"},
+    {code: "11 01 17", name: "Szlamy z zakładowych oczyszczalni ścieków inne niż wymienione w 11 01 16"},
+    {code: "11 01 18", name: "Odpady z oczyszczania gazów odlotowych zawierające substancje niebezpieczne"},
+    {code: "11 01 19", name: "Odpady z oczyszczania gazów odlotowych inne niż wymienione w 11 01 18"},
+    {code: "11 01 99", name: "Inne odpady niż wymienione w 11 01 05 do 11 01 19"},
+    {code: "11 02 05", name: "Szlamy i placki filtracyjne zawierające substancje niebezpieczne (z wyjątkiem 11 02 07)"},
+    {code: "11 02 06", name: "Szlamy i placki filtracyjne inne niż wymienione w 11 02 05"},
+    {code: "11 02 07", name: "Odpady z procesów hydrometalurgicznych miedzi zawierające substancje niebezpieczne"},
+    {code: "11 02 08", name: "Inne odpady niż wymienione w 11 02 05 do 11 02 07"},
+    {code: "11 03 01", name: "Szlamy z procesów hartowania zawierające cyjanki"},
+    {code: "11 03 02", name: "Szlamy z procesów hartowania inne niż wymienione w 11 03 01"},
+    {code: "11 03 99", name: "Inne odpady niż wymienione w 11 03 01 i 11 03 02"},
+    {code: "12 01 01", name: "Odpady z obróbki skrawaniem, zawierające metale żelazne (np. wióry, opiłki, zgorzelina)"},
+    {code: "12 01 02", name: "Odpady z obróbki skrawaniem, zawierające metale nieżelazne (np. wióry, opiłki, zgorzelina)"},
+    {code: "12 01 03", name: "Pyły i cząstki stałe metali żelaznych"},
+    {code: "12 01 04", name: "Pyły i cząstki stałe metali nieżelaznych"},
+    {code: "12 01 05", name: "Odpady z szlifowania i polerowania (z wyjątkiem 12 01 20)"},
+    {code: "12 01 06", name: "Olej odpadowy i emulsje z obróbki skrawaniem zawierające substancje niebezpieczne"},
+    {code: "12 01 07", name: "Olej odpadowy i emulsje z obróbki skrawaniem inne niż wymienione w 12 01 06"},
+    {code: "12 01 08", name: "Szlamy zawierające substancje niebezpieczne z obróbki skrawaniem (np. z filtrowania)"},
+    {code: "12 01 09", name: "Szlamy z obróbki skrawaniem inne niż wymienione w 12 01 08"},
+    {code: "12 01 10", name: "Zużyte narzędzia skrawające i frezy"},
+    {code: "12 01 12", name: "Zużyte woski i smary zawierające substancje niebezpieczne"},
+    {code: "12 01 13", name: "Zużyte woski i smary inne niż wymienione w 12 01 12"},
+    {code: "12 01 14", name: "Odpady z obróbki skrawaniem zawierające substancje niebezpieczne, inne niż 12 01 06 do 12 01 13"},
+    {code: "12 01 15", name: "Odpady z obróbki skrawaniem inne niż wymienione w 12 01 14"},
+    {code: "12 01 16", name: "Odpady piaskowania zawierające substancje niebezpieczne"},
+    {code: "12 01 17", name: "Odpady piaskowania inne niż wymienione w 12 01 16"},
+    {code: "12 01 18", name: "Szlamy z obróbki skrawaniem tworzyw sztucznych"},
+    {code: "12 01 19", name: "Odpady z obróbki skrawaniem tworzyw sztucznych"},
+    {code: "12 01 20", name: "Zużyte elementy ścierne zawierające substancje niebezpieczne"},
+    {code: "12 01 21", name: "Zużyte elementy ścierne inne niż wymienione w 12 01 20"},
+    {code: "12 01 99", name: "Inne odpady niż wymienione w 12 01 01 do 12 01 21"},
+    {code: "13 01 01", name: "Oleje hydrauliczne zawierające PCB"},
+    {code: "13 01 04", name: "Emulsje olejowe stabilne, zawierające substancje niebezpieczne"},
+    {code: "13 01 05", name: "Emulsje olejowe stabilne, inne niż wymienione w 13 01 04"},
+    {code: "13 01 09", name: "Oleje hydrauliczne syntetyczne, zawierające substancje niebezpieczne"},
+    {code: "13 01 10", name: "Oleje hydrauliczne syntetyczne, inne niż wymienione w 13 01 09"},
+    {code: "13 01 11", name: "Oleje hydrauliczne mineralne, zawierające substancje niebezpieczne"},
+    {code: "13 01 12", name: "Oleje hydrauliczne mineralne, inne niż wymienione w 13 01 11"},
+    {code: "13 01 13", name: "Inne oleje hydrauliczne, zawierające substancje niebezpieczne"},
+    {code: "13 01 99", name: "Inne oleje hydrauliczne, inne niż wymienione w 13 01 01 do 13 01 13"},
+    {code: "13 02 04", name: "Olej odpadowy z silników spalinowych, przekładni i smarowania, zawierający substancje niebezpieczne"},
+    {code: "13 02 05", name: "Olej odpadowy z silników spalinowych, przekładni i smarowania, inny niż wymieniony w 13 02 04"},
+    {code: "13 02 06", name: "Olej syntetyczny z silników spalinowych, przekładni i smarowania, zawierający substancje niebezpieczne"},
+    {code: "13 02 07", name: "Olej syntetyczny z silników spalinowych, przekładni i smarowania, inny niż wymieniony w 13 02 06"},
+    {code: "13 02 08", name: "Inne oleje odpadowe z silników spalinowych, przekładni i smarowania, zawierające substancje niebezpieczne"},
+    {code: "13 02 99", name: "Inne oleje odpadowe z silników spalinowych, przekładni i smarowania, inne niż wymienione w 13 02 04 do 13 02 08"},
+    {code: "13 03 06", name: "Olej izolacyjny i ciecze do wymiany ciepła zawierające PCB"},
+    {code: "13 03 07", name: "Olej izolacyjny i ciecze do wymiany ciepła zawierające substancje niebezpieczne, inne niż 13 03 06"},
+    {code: "13 03 08", name: "Olej izolacyjny i ciecze do wymiany ciepła inne niż wymienione w 13 03 07"},
+    {code: "13 03 09", name: "Inne oleje izolacyjne i ciecze do wymiany ciepła, zawierające substancje niebezpieczne"},
+    {code: "13 03 10", name: "Inne oleje izolacyjne i ciecze do wymiany ciepła, inne niż wymienione w 13 03 09"},
+    {code: "13 04 01", name: "Oleje z zęz statków rzecznych"},
+    {code: "13 04 02", name: "Oleje z zęz statków portowych"},
+    {code: "13 04 03", name: "Oleje z zęz innych statków"},
+    {code: "13 05 01", name: "Mieszanina stałych substancji, piasku i osadów z odwadniania"},
+    {code: "13 05 02", name: "Osady z urządzeń do odwadniania (w tym z odstojników)"},
+    {code: "13 05 03", name: "Szlamy z łapaczy olejów"},
+    {code: "13 05 06", name: "Oleje i emulsje olejowe z separatorów olej/woda zawierające substancje niebezpieczne"},
+    {code: "13 05 07", name: "Oleje i emulsje olejowe z separatorów olej/woda, inne niż wymienione w 13 05 06"},
+    {code: "13 05 08", name: "Mieszaniny odpadów z separatorów olej/woda, zawierające substancje niebezpieczne"},
+    {code: "13 07 01", name: "Olej opałowy i ciekłe paliwa, zawierające substancje niebezpieczne"},
+    {code: "13 07 02", name: "Olej opałowy i ciekłe paliwa, inne niż wymienione w 13 07 01"},
+    {code: "13 07 03", name: "Inne ciecze z silników spalinowych, zawierające substancje niebezpieczne"},
+    {code: "13 07 99", name: "Inne odpady ciekłych paliw, inne niż wymienione w 13 07 01 do 13 07 03"},
+    {code: "13 08 01", name: "Szlamy i emulsje solne"},
+    {code: "13 08 02", name: "Szlamy i emulsje solne, zawierające substancje niebezpieczne"},
+    {code: "13 08 99", name: "Inne odpady niż wymienione w 13 08 01 i 13 08 02"},
+    {code: "14 06 04", name: "Szlamy i osady zawierające chlorowcowane rozpuszczalniki organiczne"},
+    {code: "14 06 05", name: "Szlamy i osady zawierające inne rozpuszczalniki organiczne"},
+    {code: "14 06 06", name: "Odpady z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "14 06 07", name: "Odpady z oczyszczania gazów odlotowych, inne niż wymienione w 14 06 06"},
+    {code: "15 01 01", name: "Opakowania z papieru i tektury"},
+    {code: "15 01 02", name: "Opakowania z tworzyw sztucznych"},
+    {code: "15 01 03", name: "Opakowania z drewna"},
+    {code: "15 01 04", name: "Opakowania z metali"},
+    {code: "15 01 05", name: "Opakowania wielomateriałowe"},
+    {code: "15 01 06", name: "Opakowania ze szkła"},
+    {code: "15 01 07", name: "Opakowania z tekstyliów"},
+    {code: "15 01 09", name: "Opakowania zawierające pozostałości substancji niebezpiecznych lub nimi zanieczyszczone"},
+    {code: "15 01 10", name: "Opakowania zawierające pozostałości substancji niebezpiecznych, inne niż wymienione w 15 01 09"},
+    {code: "15 01 11", name: "Opakowania metalowe zawierające substancje niebezpieczne w postaci stałej, porowatej (np. azbest)"},
+    {code: "15 02 02", name: "Sorbenty, materiały filtracyjne, czyściwo i ubrania ochronne, zanieczyszczone substancjami niebezpiecznymi"},
+    {code: "15 02 03", name: "Sorbenty, materiały filtracyjne, czyściwo i ubrania ochronne, inne niż wymienione w 15 02 02"},
+    {code: "16 01 03", name: "Zużyte opony"},
+    {code: "16 01 04", name: "Zużyte pojazdy (w tym maszyny i urządzenia) — niezawierające substancji niebezpiecznych"},
+    {code: "16 01 06", name: "Pojazdy wycofane z eksploatacji, zawierające substancje niebezpieczne"},
+    {code: "16 01 07", name: "Filtry olejowe, zużyte"},
+    {code: "16 01 08", name: "Elementy zawierające rtęć z pojazdów"},
+    {code: "16 01 09", name: "Elementy zawierające PCB z pojazdów"},
+    {code: "16 01 10", name: "Elementy wybuchowe (np. poduszki powietrzne) z pojazdów"},
+    {code: "16 01 11", name: "Klocki hamulcowe zawierające azbest"},
+    {code: "16 01 12", name: "Klocki hamulcowe inne niż wymienione w 16 01 11"},
+    {code: "16 01 13", name: "Elementy inne niż wymienione w 16 01 07 do 16 01 12, zawierające substancje niebezpieczne"},
+    {code: "16 01 14", name: "Elementy inne niż wymienione w 16 01 07 do 16 01 13"},
+    {code: "16 01 15", name: "Płyny niezamarzające zawierające substancje niebezpieczne"},
+    {code: "16 01 16", name: "Płyny niezamarzające inne niż wymienione w 16 01 15"},
+    {code: "16 01 17", name: "Płyny hamulcowe zawierające substancje niebezpieczne"},
+    {code: "16 01 18", name: "Płyny hamulcowe inne niż wymienione w 16 01 17"},
+    {code: "16 01 19", name: "Szlamy z usuwania zanieczyszczeń z rurociągów"},
+    {code: "16 01 20", name: "Szkło z pojazdów"},
+    {code: "16 01 21", name: "Elementy z tworzyw sztucznych (np. deski rozdzielcze, zderzaki) z pojazdów"},
+    {code: "16 01 22", name: "Metale (np. karoserie, części silnika) z pojazdów"},
+    {code: "16 01 99", name: "Inne odpady niż wymienione w 16 01 03 do 16 01 22"},
+    {code: "16 02 09", name: "Zużyte urządzenia zawierające PCB lub PCT"},
+    {code: "16 02 10", name: "Zużyte urządzenia inne niż wymienione w 16 02 09, zawierające substancje niebezpieczne"},
+    {code: "16 02 11", name: "Zużyte urządzenia inne niż wymienione w 16 02 09 i 16 02 10"},
+    {code: "16 02 12", name: "Zużyte urządzenia zawierające niebezpieczne komponenty, inne niż wymienione w 16 02 09 do 16 02 11"},
+    {code: "16 02 13", name: "Zużyte urządzenia inne niż wymienione w 16 02 09 do 16 02 12"},
+    {code: "16 02 14", name: "Wycofane urządzenia zawierające freony lub inne substancje zubożające warstwę ozonową"},
+    {code: "16 02 15", name: "Zużyte urządzenia zawierające substancje niebezpieczne, inne niż wymienione w 16 02 09 do 16 02 14"},
+    {code: "16 02 16", name: "Zużyte urządzenia inne niż wymienione w 16 02 09 do 16 02 15"},
+    {code: "16 03 03", name: "Nieorganiczne chemikalia laboratoryjne, zawierające substancje niebezpieczne"},
+    {code: "16 03 04", name: "Nieorganiczne chemikalia laboratoryjne, inne niż wymienione w 16 03 03"},
+    {code: "16 03 05", name: "Organiczne chemikalia laboratoryjne, zawierające substancje niebezpieczne"},
+    {code: "16 03 06", name: "Organiczne chemikalia laboratoryjne, inne niż wymienione w 16 03 05"},
+    {code: "16 03 07", name: "Nieorganiczne chemikalia niebezpieczne, inne niż wymienione w 16 03 03 i 16 03 04"},
+    {code: "16 03 08", name: "Organiczne chemikalia niebezpieczne, inne niż wymienione w 16 03 05 i 16 03 06"},
+    {code: "16 03 09", name: "Inne chemikalia, inne niż wymienione w 16 03 03 do 16 03 08"},
+    {code: "16 04 01", name: "Materiały wybuchowe zużyte, inne niż wymienione w 16 04 02 i 16 04 03"},
+    {code: "16 04 02", name: "Materiały wybuchowe zawierające związki chlorowcoorganiczne"},
+    {code: "16 04 03", name: "Materiały wybuchowe zawierające inne substancje niebezpieczne"},
+    {code: "16 05 06", name: "Zużyte baterie zawierające substancje niebezpieczne (z wyjątkiem 16 06 01 i 16 06 02)"},
+    {code: "16 05 07", name: "Zużyte baterie inne niż wymienione w 16 05 06"},
+    {code: "16 05 08", name: "Elementy zawierające rtęć (np. termometry)"},
+    {code: "16 05 09", name: "Elementy zawierające azbest (związany)"},
+    {code: "16 05 99", name: "Inne odpady niż wymienione w 16 05 06 do 16 05 09"},
+    {code: "16 06 01", name: "Akumulatory ołowiowe"},
+    {code: "16 06 02", name: "Akumulatory niklowo-kadmowe"},
+    {code: "16 06 03", name: "Baterie cynkowo-węglowe"},
+    {code: "16 06 04", name: "Baterie alkaliczne"},
+    {code: "16 06 05", name: "Inne baterie i akumulatory (w tym baterie litowe)"},
+    {code: "16 06 06", name: "Elektrolit z baterii i akumulatorów, zawierający substancje niebezpieczne"},
+    {code: "16 07 08", name: "Odpady zawierające substancje ropopochodne (np. piasek, gleba, osady)"},
+    {code: "16 07 09", name: "Odpady zawierające smołę węglową (np. z gazowni)"},
+    {code: "16 07 99", name: "Inne odpady niż wymienione w 16 07 08 i 16 07 09"},
+    {code: "16 08 01", name: "Zużyte katalizatory zawierające złoto, srebro, platynę"},
+    {code: "16 08 02", name: "Zużyte katalizatory zawierające metale przejściowe (np. nikiel, miedź, cynk)"},
+    {code: "16 08 03", name: "Zużyte katalizatory zawierające substancje niebezpieczne, inne niż wymienione w 16 08 01 i 16 08 02"},
+    {code: "16 08 04", name: "Zużyte katalizatory inne niż wymienione w 16 08 01 do 16 08 03"},
+    {code: "16 09 01", name: "Odpady zawierające manganiany, manganiny i nadmanganiany"},
+    {code: "16 09 02", name: "Odpady zawierające chromiany i dichromiany"},
+    {code: "16 09 03", name: "Odpady zawierające azydki"},
+    {code: "16 09 04", name: "Odpady zawierające azotany"},
+    {code: "16 09 99", name: "Inne odpady niż wymienione w 16 09 01 do 16 09 04"},
+    {code: "16 10 01", name: "Wodne roztwory myjące i ługi macierzyste zawierające substancje niebezpieczne"},
+    {code: "16 10 02", name: "Wodne roztwory myjące i ługi macierzyste inne niż wymienione w 16 10 01"},
+    {code: "16 10 03", name: "Szlamy z zakładowych oczyszczalni ścieków, zawierające substancje niebezpieczne"},
+    {code: "16 10 04", name: "Szlamy z zakładowych oczyszczalni ścieków, inne niż wymienione w 16 10 03"},
+    {code: "16 10 99", name: "Inne odpady niż wymienione w 16 10 01 do 16 10 04"},
+    {code: "16 11 01", name: "Wyroby ogniotrwałe (izolacyjne) zawierające substancje niebezpieczne"},
+    {code: "16 11 02", name: "Wyroby ogniotrwałe (izolacyjne) inne niż wymienione w 16 11 01"},
+    {code: "16 11 03", name: "Wyroby ogniotrwałe (nieizolacyjne) zawierające substancje niebezpieczne"},
+    {code: "16 11 04", name: "Wyroby ogniotrwałe (nieizolacyjne) inne niż wymienione w 16 11 03"},
+    {code: "16 11 05", name: "Wyroby ogniotrwałe z procesów metalurgicznych, zawierające substancje niebezpieczne"},
+    {code: "16 11 06", name: "Wyroby ogniotrwałe z procesów metalurgicznych, inne niż wymienione w 16 11 05"},
+    {code: "16 11 99", name: "Inne odpady niż wymienione w 16 11 01 do 16 11 06"},
+    {code: "17 01 01", name: "Odpady betonu oraz gruz betonowy z rozbiórek i remontów"},
+    {code: "17 01 02", name: "Gruz ceglany"},
+    {code: "17 01 03", name: "Odpady innych materiałów ceramicznych i elementów wyposażenia (np. płytki, ceramika sanitarna)"},
+    {code: "17 01 06", name: "Mieszanki lub odpady betonu, gruzu ceglanego, materiałów ceramicznych i elementów wyposażenia, zawierające substancje niebezpieczne"},
+    {code: "17 01 07", name: "Mieszanki lub odpady betonu, gruzu ceglanego, materiałów ceramicznych i elementów wyposażenia, inne niż wymienione w 17 01 06"},
+    {code: "17 02 01", name: "Drewno"},
+    {code: "17 02 02", name: "Szkło"},
+    {code: "17 02 03", name: "Tworzywa sztuczne"},
+    {code: "17 02 04", name: "Drewno, szkło i tworzywa sztuczne, zawierające substancje niebezpieczne"},
+    {code: "17 03 01", name: "Masy bitumiczne, zawierające smołę lub inne substancje niebezpieczne"},
+    {code: "17 03 02", name: "Masy bitumiczne inne niż wymienione w 17 03 01"},
+    {code: "17 03 03", name: "Smoła i produkty smołowe (np. z konserwacji dróg)"},
+    {code: "17 03 04", name: "Mieszanki betonowe i asfaltowe zawierające substancje niebezpieczne"},
+    {code: "17 04 01", name: "Miedź, brąz, mosiądz"},
+    {code: "17 04 02", name: "Aluminium"},
+    {code: "17 04 03", name: "Ołów"},
+    {code: "17 04 04", name: "Cynk"},
+    {code: "17 04 05", name: "Żelazo i stal"},
+    {code: "17 04 06", name: "Cyna"},
+    {code: "17 04 07", name: "Mieszaniny metali"},
+    {code: "17 04 09", name: "Odpady metali zanieczyszczone substancjami niebezpiecznymi"},
+    {code: "17 04 10", name: "Odpady kabli i przewodów zawierające substancje niebezpieczne"},
+    {code: "17 04 11", name: "Odpady kabli i przewodów inne niż wymienione w 17 04 10"},
+    {code: "17 05 03", name: "Gleba i ziemia, w tym kamienie, zawierające substancje niebezpieczne"},
+    {code: "17 05 04", name: "Gleba i ziemia, w tym kamienie, inne niż wymienione w 17 05 03"},
+    {code: "17 05 05", name: "Urobek z pogłębiania zawierający substancje niebezpieczne"},
+    {code: "17 05 06", name: "Urobek z pogłębiania inny niż wymieniony w 17 05 05"},
+    {code: "17 05 07", name: "Tłuczeń torowy, zawierający substancje niebezpieczne"},
+    {code: "17 05 08", name: "Tłuczeń torowy inny niż wymieniony w 17 05 07"},
+    {code: "17 06 01", name: "Materiały izolacyjne zawierające azbest"},
+    {code: "17 06 03", name: "Inne materiały izolacyjne zawierające substancje niebezpieczne (np. wełna mineralna)"},
+    {code: "17 06 04", name: "Materiały izolacyjne inne niż wymienione w 17 06 01 i 17 06 03"},
+    {code: "17 06 05", name: "Materiały budowlane zawierające azbest"},
+    {code: "17 08 01", name: "Materiały budowlane na bazie gipsu, zawierające substancje niebezpieczne"},
+    {code: "17 08 02", name: "Materiały budowlane na bazie gipsu inne niż wymienione w 17 08 01"},
+    {code: "17 09 01", name: "Odpady z budowy i rozbiórki zawierające rtęć"},
+    {code: "17 09 02", name: "Odpady z budowy i rozbiórki zawierające PCB"},
+    {code: "17 09 03", name: "Inne odpady z budowy i rozbiórki zawierające substancje niebezpieczne"},
+    {code: "17 09 04", name: "Mieszane odpady z budowy i rozbiórki inne niż wymienione w 17 09 01, 17 09 02 i 17 09 03"},
+    {code: "18 01 01", name: "Narzędzia chirurgiczne i zabiegowe (z wyjątkiem 18 01 03)"},
+    {code: "18 01 02", name: "Części ciała i narządy, zawierające substancje niebezpieczne (z wyjątkiem 18 01 03)"},
+    {code: "18 01 03", name: "Pozostałości tkanek, płynów ustrojowych i krew, zakaźne (np. z oddziałów zakaźnych)"},
+    {code: "18 01 04", name: "Inne odpady niż wymienione w 18 01 01 do 18 01 03 (np. opatrunki, pościel)"},
+    {code: "18 01 05", name: "Chemikalia zawierające substancje niebezpieczne"},
+    {code: "18 01 06", name: "Chemikalia inne niż wymienione w 18 01 05"},
+    {code: "18 01 07", name: "Leki cytotoksyczne i cytostatyczne"},
+    {code: "18 01 08", name: "Leki inne niż wymienione w 18 01 07"},
+    {code: "18 01 09", name: "Odpady medyczne inne niż wymienione w 18 01 01 do 18 01 08"},
+    {code: "18 02 01", name: "Narzędzia chirurgiczne i zabiegowe (z wyjątkiem 18 02 02)"},
+    {code: "18 02 02", name: "Odpady zakaźne"},
+    {code: "18 02 03", name: "Inne odpady niż wymienione w 18 02 01 i 18 02 02"},
+    {code: "18 02 05", name: "Chemikalia zawierające substancje niebezpieczne"},
+    {code: "18 02 06", name: "Chemikalia inne niż wymienione w 18 02 05"},
+    {code: "18 02 07", name: "Leki cytotoksyczne i cytostatyczne"},
+    {code: "18 02 08", name: "Leki inne niż wymienione w 18 02 07"},
+    {code: "18 02 99", name: "Inne odpady niż wymienione w 18 02 01 do 18 02 08"},
+    {code: "19 01 02", name: "Popioły paleniskowe i żużle, inne niż wymienione w 19 01 13"},
+    {code: "19 01 05", name: "Popioły lotne zawierające substancje niebezpieczne"},
+    {code: "19 01 06", name: "Popioły lotne inne niż wymienione w 19 01 05"},
+    {code: "19 01 07", name: "Pyły z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "19 01 08", name: "Pyły z oczyszczania gazów odlotowych, inne niż wymienione w 19 01 07"},
+    {code: "19 01 09", name: "Szlamy z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "19 01 10", name: "Szlamy z oczyszczania gazów odlotowych, inne niż wymienione w 19 01 09"},
+    {code: "19 01 11", name: "Żużle i popioły z kotłów, zawierające substancje niebezpieczne"},
+    {code: "19 01 12", name: "Żużle i popioły z kotłów, inne niż wymienione w 19 01 11"},
+    {code: "19 01 13", name: "Odpady stałe z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "19 01 14", name: "Odpady stałe z oczyszczania gazów odlotowych, inne niż wymienione w 19 01 13"},
+    {code: "19 01 15", name: "Szlamy z uzdatniania wody kotłowej, zawierające substancje niebezpieczne"},
+    {code: "19 01 16", name: "Szlamy z uzdatniania wody kotłowej, inne niż wymienione w 19 01 15"},
+    {code: "19 01 17", name: "Odpady z pirolizy odpadów zawierające substancje niebezpieczne"},
+    {code: "19 01 18", name: "Odpady z pirolizy odpadów inne niż wymienione w 19 01 17"},
+    {code: "19 01 19", name: "Piaski ze złoża fluidalnego (z wyjątkiem 19 01 20)"},
+    {code: "19 01 20", name: "Piaski ze złoża fluidalnego zawierające substancje niebezpieczne"},
+    {code: "19 01 21", name: "Inne odpady niż wymienione w 19 01 02 do 19 01 20"},
+    {code: "19 02 04", name: "Mieszaniny odpadów zawierające substancje niebezpieczne"},
+    {code: "19 02 05", name: "Mieszaniny odpadów inne niż wymienione w 19 02 04"},
+    {code: "19 02 06", name: "Szlamy zawierające substancje niebezpieczne, z uzdatniania wody"},
+    {code: "19 02 07", name: "Szlamy inne niż wymienione w 19 02 06"},
+    {code: "19 02 08", name: "Odpady z filtracji zawierające substancje niebezpieczne"},
+    {code: "19 02 09", name: "Odpady z filtracji inne niż wymienione w 19 02 08"},
+    {code: "19 02 10", name: "Zużyty węgiel aktywny"},
+    {code: "19 02 11", name: "Inne odpady niż wymienione w 19 02 04 do 19 02 10"},
+    {code: "19 03 04", name: "Odpady niebezpieczne, ustalone (stabilizaty)"},
+    {code: "19 03 05", name: "Odpady inne niż niebezpieczne, ustalone (stabilizaty)"},
+    {code: "19 04 02", name: "Popioły lotne i inne odpady z pieców"},
+    {code: "19 04 03", name: "Częściowo stopione odpady (fritta)"},
+    {code: "19 04 04", name: "Odpady ceramiczne"},
+    {code: "19 05 02", name: "Odpady z kompostowania, niezgodne z wymaganiami"},
+    {code: "19 05 03", name: "Inne odpady niż wymienione w 19 05 02"},
+    {code: "19 06 03", name: "Ciecze z fermentacji beztlenowej odpadów komunalnych"},
+    {code: "19 06 04", name: "Odpady stałe z fermentacji beztlenowej odpadów komunalnych"},
+    {code: "19 06 05", name: "Ciecze z fermentacji beztlenowej osadów"},
+    {code: "19 06 06", name: "Odpady stałe z fermentacji beztlenowej osadów"},
+    {code: "19 07 02", name: "Odpady z sortowania, zawierające substancje niebezpieczne"},
+    {code: "19 07 03", name: "Odpady z sortowania, inne niż wymienione w 19 07 02"},
+    {code: "19 08 05", name: "Szlamy z oczyszczania ścieków komunalnych"},
+    {code: "19 08 06", name: "Żywice jonowymienne"},
+    {code: "19 08 07", name: "Odpady z oczyszczania wody zawierające substancje niebezpieczne"},
+    {code: "19 08 08", name: "Odpady z oczyszczania wody inne niż wymienione w 19 08 07"},
+    {code: "19 08 09", name: "Mieszaniny olejów i tłuszczów z odwadniania"},
+    {code: "19 08 10", name: "Odpady z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "19 08 11", name: "Odpady z oczyszczania gazów odlotowych, inne niż wymienione w 19 08 10"},
+    {code: "19 08 12", name: "Szlamy z procesów biologicznych w oczyszczalniach komunalnych"},
+    {code: "19 08 13", name: "Szlamy z innych procesów oczyszczania ścieków"},
+    {code: "19 08 14", name: "Odpady ze wstępnej obróbki ścieków (skratki, piaski)"},
+    {code: "19 08 16", name: "Osady z instalacji do uzdatniania wody pitnej, zawierające substancje niebezpieczne"},
+    {code: "19 08 17", name: "Osady z instalacji do uzdatniania wody pitnej, inne niż wymienione w 19 08 16"},
+    {code: "19 08 99", name: "Inne odpady niż wymienione w 19 08 05 do 19 08 17"},
+    {code: "19 09 01", name: "Odpady stałe z sit i przesiewania"},
+    {code: "19 09 02", name: "Szlamy z klarowania wody"},
+    {code: "19 09 03", name: "Zużyty węgiel aktywny"},
+    {code: "19 09 04", name: "Szlamy z regeneracji żywic jonowymiennych"},
+    {code: "19 09 05", name: "Osady z odwadniania wapna"},
+    {code: "19 09 06", name: "Szlamy i osady z uzdatniania wód powierzchniowych"},
+    {code: "19 09 99", name: "Inne odpady niż wymienione w 19 09 01 do 19 09 06"},
+    {code: "19 10 01", name: "Odpady z recyklingu żelaza i stali (np. frakcja lekka, odpady z kruszenia)"},
+    {code: "19 10 02", name: "Odpady z recyklingu metali nieżelaznych (np. frakcja lekka, odpady z kruszenia)"},
+    {code: "19 10 03", name: "Pyły i inne odpady stałe, zawierające substancje niebezpieczne"},
+    {code: "19 10 04", name: "Pyły i inne odpady stałe, inne niż wymienione w 19 10 03"},
+    {code: "19 10 05", name: "Szlamy zawierające substancje niebezpieczne"},
+    {code: "19 10 06", name: "Szlamy inne niż wymienione w 19 10 05"},
+    {code: "19 11 03", name: "Szlamy z oczyszczania wody zawierające substancje niebezpieczne"},
+    {code: "19 11 04", name: "Szlamy z oczyszczania wody inne niż wymienione w 19 11 03"},
+    {code: "19 11 05", name: "Mieszaniny odpadów zawierające substancje niebezpieczne"},
+    {code: "19 11 06", name: "Mieszaniny odpadów inne niż wymienione w 19 11 05"},
+    {code: "19 11 07", name: "Odpady stałe i szlamy z oczyszczania gazów odlotowych, zawierające substancje niebezpieczne"},
+    {code: "19 11 08", name: "Odpady stałe i szlamy z oczyszczania gazów odlotowych, inne niż wymienione w 19 11 07"},
+    {code: "19 11 99", name: "Inne odpady niż wymienione w 19 11 03 do 19 11 08"},
+    {code: "19 12 06", name: "Tworzywa sztuczne i guma"},
+    {code: "19 12 07", name: "Drewno zawierające substancje niebezpieczne"},
+    {code: "19 12 08", name: "Drewno inne niż wymienione w 19 12 07"},
+    {code: "19 12 09", name: "Materiały mineralne (np. gruz, kamienie)"},
+    {code: "19 12 10", name: "Frakcja palna (lekkie frakcje paliw)"},
+    {code: "19 12 11", name: "Inne odpady (w tym mieszaniny materiałów) z mechanicznej obróbki odpadów, zawierające substancje niebezpieczne"},
+    {code: "19 12 12", name: "Inne odpady (w tym mieszaniny materiałów) z mechanicznej obróbki odpadów, inne niż wymienione w 19 12 11"},
+    {code: "19 13 01", name: "Odpady stałe i szlamy z rekultywacji gruntu, zawierające substancje niebezpieczne"},
+    {code: "19 13 02", name: "Odpady stałe i szlamy z rekultywacji gruntu, inne niż wymienione w 19 13 01"},
+    {code: "19 13 03", name: "Szlamy i placki filtracyjne z rekultywacji wód powierzchniowych, zawierające substancje niebezpieczne"},
+    {code: "19 13 04", name: "Szlamy i placki filtracyjne z rekultywacji wód powierzchniowych, inne niż wymienione w 19 13 03"},
+    {code: "19 13 05", name: "Osady z rekultywacji wód podziemnych, zawierające substancje niebezpieczne"},
+    {code: "19 13 06", name: "Osady z rekultywacji wód podziemnych, inne niż wymienione w 19 13 05"},
+    {code: "19 13 07", name: "Ciecze z rekultywacji gruntu i wód podziemnych, zawierające substancje niebezpieczne"},
+    {code: "19 13 08", name: "Ciecze z rekultywacji gruntu i wód podziemnych, inne niż wymienione w 19 13 07"},
+    {code: "20 01 01", name: "Papier i tektura"},
+    {code: "20 01 02", name: "Szkło"},
+    {code: "20 01 08", name: "Tworzywa sztuczne"},
+    {code: "20 01 10", name: "Ubrania (tekstylia)"},
+    {code: "20 01 11", name: "Tekstylia inne niż wymienione w 20 01 10"},
+    {code: "20 01 13", name: "Rozpuszczalniki organiczne, zużyte"},
+    {code: "20 01 14", name: "Kwasy"},
+    {code: "20 01 15", name: "Zasady"},
+    {code: "20 01 17", name: "Farby, tusze, kleje, lakiery, zawierające substancje niebezpieczne"},
+    {code: "20 01 19", name: "Pestycydy i inne środki ochrony roślin, zawierające substancje niebezpieczne"},
+    {code: "20 01 21", name: "Świetlówki i inne odpady zawierające rtęć"},
+    {code: "20 01 23", name: "Zużyty sprzęt zawierający freony"},
+    {code: "20 01 25", name: "Oleje jadalne i tłuszcze"},
+    {code: "20 01 26", name: "Oleje inne niż jadalne, zawierające substancje niebezpieczne"},
+    {code: "20 01 27", name: "Farby, tusze, kleje, lakiery, inne niż wymienione w 20 01 17"},
+    {code: "20 01 28", name: "Leki inne niż wymienione w 20 01 31"},
+    {code: "20 01 29", name: "Detergenty zawierające substancje niebezpieczne"},
+    {code: "20 01 30", name: "Detergenty inne niż wymienione w 20 01 29"},
+    {code: "20 01 31", name: "Leki cytotoksyczne i cytostatyczne"},
+    {code: "20 01 32", name: "Leki inne niż wymienione w 20 01 31"},
+    {code: "20 01 33", name: "Baterie i akumulatory, zawierające substancje niebezpieczne"},
+    {code: "20 01 34", name: "Baterie i akumulatory, inne niż wymienione w 20 01 33"},
+    {code: "20 01 35", name: "Zużyty sprzęt elektryczny i elektroniczny zawierający substancje niebezpieczne"},
+    {code: "20 01 36", name: "Zużyty sprzęt elektryczny i elektroniczny inny niż wymieniony w 20 01 35"},
+    {code: "20 01 37", name: "Drewno zawierające substancje niebezpieczne"},
+    {code: "20 01 38", name: "Drewno inne niż wymienione w 20 01 37"},
+    {code: "20 01 39", name: "Tworzywa sztuczne i guma, zawierające substancje niebezpieczne"},
+    {code: "20 01 40", name: "Tworzywa sztuczne i guma, inne niż wymienione w 20 01 39"},
+    {code: "20 01 41", name: "Materiały budowlane zawierające azbest"},
+    {code: "20 01 99", name: "Inne frakcje nieujęte w 20 01 01 do 20 01 41"},
+    {code: "20 02 01", name: "Odpady ulegające biodegradacji"},
+    {code: "20 02 02", name: "Gleba i kamienie"},
+    {code: "20 02 03", name: "Inne odpady niż wymienione w 20 02 01 i 20 02 02"},
+    {code: "20 03 01", name: "Niesegregowane (zmieszane) odpady komunalne"},
+    {code: "20 03 02", name: "Odpady z targowisk"},
+    {code: "20 03 03", name: "Odpady z czyszczenia ulic i placów"},
+    {code: "20 03 04", name: "Osady z szamba"},
+    {code: "20 03 06", name: "Odpady specjalne (np. odpady z wielkich gabarytów)"},
+    {code: "20 03 07", name: "Odpady wielkogabarytowe"},
+    {code: "20 03 99", name: "Inne odpady komunalne niż wymienione w 20 03 01 do 20 03 07"}
+];
+
+const results = document.getElementById('results');
+const search = document.getElementById('search');
+
+function render(list){
+  if(!list.length){ results.innerHTML='<div><small>Brak pozycji. Importuj dane lub doprecyzuj wyszukiwanie.</small></div>'; return; }
+  results.innerHTML = list.map((it, idx)=>`
+    <div class="item" data-idx="${idx}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" class="chk" data-idx="${idx}" />
+        <div class="code">${it.code}</div>
+        <div class="name">${escapeHtml(it.name)}</div>
+      </div>
+      <div style="min-width:180px;text-align:right">
+        <button class="copyBtn" data-code="${it.code}">Kopiuj kod</button>
+      </div>
+    </div>`).join('');
+  attachListeners();
+}
+
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function attachListeners(){
+  document.querySelectorAll('.copyBtn').forEach(b=>{
+    b.onclick = ()=>{ navigator.clipboard?.writeText(b.dataset.code).then(()=>alert('Skopiowano: '+b.dataset.code)).catch(()=>alert('Kopiowanie niedostępne')); }
+  });
+  document.querySelectorAll('.toggleBtn').forEach(b=>{
+    b.onclick = ()=>{
+      const idx = b.dataset.idx;
+      const el = b.closest('.item').querySelector('.name');
+      alert(items[idx].code + ' — ' + items[idx].name);
+    }
+  });
+  document.querySelectorAll('.chk').forEach(cb=>{
+    cb.onchange = ()=> cb.closest('.item').classList.toggle('selected', cb.checked);
+  });
+}
+
+/* Search/filter logic */
+function filterAndRender(){
+  const q = search.value.trim().toLowerCase();
+  if(!q){ render(items); return; }
+  const byCode = items.filter(it=>it.code.replace(/\s+/g,'').includes(q.replace(/\s+/g,'')));
+  const byName = items.filter(it=>it.name.toLowerCase().includes(q));
+  // merge unique, prefer code matches first
+  const merged = [...byCode];
+  byName.forEach(it=>{ if(!merged.find(m=>m.code===it.code)) merged.push(it); });
+  render(merged);
+}
+
+/* Controls */
+document.getElementById('clear').onclick = ()=>{ search.value=''; filterAndRender(); };
+search.addEventListener('input', filterAndRender);
+document.getElementById('selectAll').onclick = ()=> document.querySelectorAll('.chk').forEach(cb=>{ cb.checked=true; cb.dispatchEvent(new Event('change')); });
+document.getElementById('deselectAll').onclick = ()=> document.querySelectorAll('.chk').forEach(cb=>{ cb.checked=false; cb.dispatchEvent(new Event('change')); });
+
+document.getElementById('exportCsv').onclick = ()=>{
+  const selected = Array.from(document.querySelectorAll('.chk')).filter(cb=>cb.checked).map(cb=>items[cb.dataset.idx]);
+  if(!selected.length){ alert('Brak zaznaczonych pozycji'); return; }
+  const csv = 'code,name\\n' + selected.map(it=>`"${it.code.replace(/"/g,'""')}","${it.name.replace(/"/g,'""')}"`).join('\\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'selected_waste_codes.csv'; a.click(); URL.revokeObjectURL(url);
+};
+
+document.getElementById('copySelected').onclick = ()=>{
+  const selected = Array.from(document.querySelectorAll('.chk')).filter(cb=>cb.checked).map(cb=>items[cb.dataset.idx]);
+  if(!selected.length){ alert('Brak zaznaczonych pozycji'); return; }
+  const txt = selected.map(it=>it.code + ' - ' + it.name).join('\\n');
+  navigator.clipboard?.writeText(txt).then(()=>alert('Skopiowano wybrane')).catch(()=>alert('Kopiowanie niedostępne'));
+};
+
+/* Import from paste area */
+document.getElementById('parsePaste').onclick = ()=>{
+  const raw = document.getElementById('pasteArea').value.trim();
+  if(!raw){ alert('Brak tekstu w polu'); return; }
+  const parsed = parseLines(raw);
+  if(parsed.length){ items = parsed; filterAndRender(); alert('Zaimportowano ' + parsed.length + ' pozycji'); }
+  else alert('Nie znaleziono poprawnych linii. Upewnij się, że używasz formatu: KOD - NAZWA');
+};
+
+/* File import (CSV / JSON / TXT) */
+document.getElementById('fileInput').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  const txt = await f.text();
+  let parsed = [];
+  if(f.name.toLowerCase().endsWith('.json')){
+    try{ const j = JSON.parse(txt); if(Array.isArray(j)) parsed = j.map(normalize); }
+    catch(err){ alert('Błąd parsowania JSON: '+err.message); }
+  } else {
+    // try CSV or plain lines
+    // split lines and parse each
+    parsed = parseLines(txt);
+    // also try CSV with header code,name
+    if(!parsed.length){
+      const lines = txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+      // detect separator
+      const sep = lines[0].includes(';') ? ';' : (lines[0].includes(',') ? ',' : null);
+      if(sep){
+        const [hdr, ...rest] = lines;
+        const cols = hdr.split(sep).map(s=>s.trim().toLowerCase());
+        const codeIdx = cols.indexOf('code')>=0?cols.indexOf('code'): (cols.indexOf('kod')>=0?cols.indexOf('kod'):-1);
+        const nameIdx = cols.indexOf('name')>=0?cols.indexOf('name'): (cols.indexOf('nazwa')>=0?cols.indexOf('nazwa'):-1);
+        if(codeIdx>=0 && nameIdx>=0){
+          parsed = rest.map(l=>l.split(sep)).map(parts=>({code:parts[codeIdx].trim(), name:parts[nameIdx].trim()})).filter(Boolean);
+        }
+      }
+    }
+  }
+  if(parsed.length){ items = parsed; filterAndRender(); alert('Zaimportowano ' + parsed.length + ' pozycji z pliku'); } 
+  else alert('Nie udało się rozpoznać danych w pliku.');
+});
+
+function normalize(o){
+  if(!o) return null;
+  return {code:(o.code||o.kod||o.KOD||'').trim(), name:(o.name||o.nazwa||o.NAZWA||o.Name||'').trim()};
+}
+
+/* parse lines like "20 01 01 - Papier i tektura" or "200101;Papier i tektura" */
+function parseLines(text){
+  const lines = text.split(/\\r?\\n/).map(l=>l.trim()).filter(Boolean);
+  const out = [];
+  for(const l of lines){
+    // try "code - name" or "code;name" or "code,name"
+    let m = l.match(/^([0-9\\s]{2,10}[-0-9\\s]*)\\s[-–—:]\\s(.+)$/);
+    if(!m){
+      m = l.match(/^([^;,]+)[;,]\\s*(.+)$/);
+    }
+    if(!m){
+      // try first token code-like and rest name
+      const firstTok = l.split(/\s+/)[0];
+      if(/^[0-9]{2,}([0-9\\s-]*)$/.test(firstTok)){
+        const code = firstTok;
+        const name = l.slice(firstTok.length).replace(/^[-–—:\\s]+/,'').trim();
+        if(name) out.push({code:code.trim(), name:name});
+        continue;
+      }
+      continue;
+    }
+    const code = m[1].trim();
+    const name = m[2].trim();
+    out.push({code, name});
+  }
+  return out;
+}
+
+/* initial render */
+filterAndRender();
+</script>
+</div>
+</html>
